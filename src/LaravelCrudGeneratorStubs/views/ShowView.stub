@@ -1,0 +1,13 @@
+@extends('layouts.app')
+
+@section('content')
+<div class="container">
+    <div class="mb-5">
+        <a href="{{route('{{modelNamePluralLowerCase}}.index')}}" class="btn btn-primary" role="button">Back to {{modelNamePluralLowerCase}} list</a>
+    </div>
+
+    <div class="row">
+{{dataContent}}
+    </div>
+</div>
+@endsection
