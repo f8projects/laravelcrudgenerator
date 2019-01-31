@@ -1,0 +1,20 @@
+{
+    "name": "f8projects/laravelcrudgenerator",
+    "description": "Laravel CRUD generator",
+    "type": "library",
+    "require": {
+        "laravelcollective/html": "^5.7"
+    },
+    "autoload": {
+        "psr-4": {
+            "f8projects\\laravelcrudgenerator\\": "src/"
+        }
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "f8/projects",
+            "email": "admin@f8.lt"
+        }
+    ]
+}

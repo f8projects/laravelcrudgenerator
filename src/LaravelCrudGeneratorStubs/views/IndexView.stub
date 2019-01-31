@@ -1,0 +1,40 @@
+@extends('layouts.app')
+
+@section('content')
+<div class="container">
+    <div class="mb-5">
+        <a href="{{route('{{modelNamePluralLowerCase}}.create')}}" class="btn btn-primary" role="button">Create new {{modelNameSingularLowerCase}}</a>
+    </div>
+
+    @if ($message = Session::get('success'))
+    <div class="alert alert-success" role="alert">
+        {{$message}}
+    </div>
+    @endif
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th scope="col">id</th>{{th}}
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach(${{modelNamePluralLowerCase}} as ${{modelNameSingularLowerCase}})
+            <tr>
+                <th scope="row">{{${{modelNameSingularLowerCase}}->id}}</th>{{td}}
+                <td>
+                    <a href="{{ route('{{modelNamePluralLowerCase}}.show', ${{modelNameSingularLowerCase}}->id)}}" title="view" class="btn btn-outline-secondary btn-sm"><i class="fas fa-eye"></i></a>
+                    <a href="{{ route('{{modelNamePluralLowerCase}}.edit', ${{modelNameSingularLowerCase}}->id)}}" title="edit" class="btn btn-outline-secondary btn-sm"><i class="fas fa-edit"></i></a>
+                    <a href="javascript:void(0);" onclick="$(this).find('form').submit();" title="delete" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-trash"></i>
+                        {!! Form::open(['method' => 'DELETE','route' => ['{{modelNamePluralLowerCase}}.destroy', ${{modelNameSingularLowerCase}}->id]]) !!}
+                        {!! Form::close() !!}
+                    </a>
+                </td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+</div>
+@endsection
