@@ -41,13 +41,13 @@ class GeneratorCommand extends Command
         if ($this->confirm('Do you wish to create app layout?'))
         $this->line("Creating layout ................................ " . (($this->layoutPut()) ? 'Success' : 'Failed'));
 
-        $this->line("Setting model name  ............................ " . (($this->parseInputName($this->ask('Input Model name (etc. Car)'))) ? 'Success' : 'Failed'));
+        $this->line("Setting model name  ............................ " . (($this->parseModelName($this->ask('Input Model name (etc. Car)'))) ? 'Success' : 'Failed'));
 
         $this->line("\nInput model's fields. Etc. name,description separated by comma");
-        $this->line("Example: name:column_type:input_type,name:input_type,name::input_type");
+        $this->line("Example: name:db_type:html_type,name:html_type,name::html_type");
         $this->line("\nColumn types: boolean, string, text, longText. Default: string");
         $this->line("Input types: text, textarea. Default: text");
-        $this->parseInputFields($this->ask('Input fields'));
+        $this->parseModelFields($this->ask('Input fields'));
 
         $this->info("[Creating models and migrations]");
         $this->line("Creating model of [{$this->modelName}] ....................... " . (($this->modelPut()) ? 'Success' : 'Failed'));
@@ -55,45 +55,45 @@ class GeneratorCommand extends Command
 
         $this->info("\n[Creating controller, repository and requests]");
         $this->line("Creating controller for [{$this->modelName}Controller] ....... " . (($this->controllerPut()) ? 'Success' : 'Failed'));
-        $this->line("Creating Repository ............................ " . (($this->repositoryPut()) ? 'Success' : 'Failed'));
-        $this->line("Creating Store and Update requests for [{$this->modelName}] .. " . (($this->requestPut()) ? 'Success' : 'Failed'));
 
         $this->info("\n[Creating Routes and views]");
         $this->line("Append routes for [{$this->modelName}] ....................... " . (($this->routesPut()) ? 'Success' : 'Failed'));
         $this->line("Creating index view for [{$this->modelName}] ................. " . (($this->indexViewPut()) ? 'Success' : 'Failed'));
-        $this->line("Creating create/edit view for [{$this->modelName}] ........... " . (($this->createViewPut()) ? 'Success' : 'Failed'));
+
+        $this->info("\n[Creating Exception handlers]");
+        $this->line("Creating Handler ................. " . (($this->handlerPut()) ? 'Success' : 'Failed'));
 
         $this->line("\nAll done!");
     }
 
-    protected function parseInputName($input)
+    protected function parseModelName($input)
     {
-        $this->modelName = $input;
+        $this->modelName = ucfirst($input);
 
         return true;
     }
 
-    protected function parseInputFields($input)
+    protected function parseModelFields($input)
     {
-        $values = explode(",", $input);
+        $inputFields = explode(",", $input);
 
-        foreach ($values as $value) {
-            $options = explode(":", $value);
+        foreach ($inputFields as $field) {
+            $fieldData = explode(":", $field);
 
-            if(!isset($options[1]) || $options[1] == NULL)
-                $options[1] = 'string';
+            if(!isset($fieldData[1]) || $fieldData[1] == NULL)
+                $fieldData[1] = 'string';
 
-            if(!isset($options[2]) || $options[2] == NULL)
-                $options[2] = 'text';
+            if(!isset($fieldData[2]) || $fieldData[2] == NULL)
+                $fieldData[2] = 'text';
 
-            $fields[] = [
-                'name' => $options[0],
-                'column_type' => $options[1],
-                'input_type' => $options[2],
+            $array[] = [
+                'name' => $fieldData[0],
+                'db_type' => $fieldData[1],
+                'html_type' => $fieldData[2],
             ];
         }
 
-        return $this->inputData = $fields;
+        return $this->modelFields = $array;
     }
 
     protected function layoutPut()
@@ -113,8 +113,8 @@ class GeneratorCommand extends Command
 
         $fillableFields = '';
 
-        foreach ($this->inputData as $value) {
-            $fillableFields .= "\n        '{$value['name']}',";
+        foreach ($this->modelFields as $modelField) {
+            $fillableFields .= "\n        '{$modelField['name']}',";
         }
 
         $output = str_replace(
@@ -124,7 +124,7 @@ class GeneratorCommand extends Command
             [
                 $fillableFields,
             ],
-            $this->replaceNamesAndGet('models/Model')
+            $this->replaceNouns('models/Model')
         );
 
         file_put_contents($path . "/{$this->modelName}.php", $output);
@@ -134,20 +134,20 @@ class GeneratorCommand extends Command
 
     protected function modelMigrationPut()
     {
-        $migrationFields = '';
+        $migrationCommands = '';
 
-        foreach ($this->inputData as $value) {
-            $migrationFields .= "\n            \$table->{$value['column_type']}('{$value['name']}');";
+        foreach ($this->modelFields as $modelField) {
+            $migrationCommands .= "\n            \$table->{$modelField['db_type']}('{$modelField['name']}');";
         }
 
         $output = str_replace(
             [
-                '{{migrationFields}}',
+                '{{migrationCommands}}',
             ],
             [
-                $migrationFields,
+                $migrationCommands,
             ],
-            $this->replaceNamesAndGet('migrations/Migration')
+            $this->replaceNouns('migrations/Migration')
         );
 
         file_put_contents(database_path("/migrations/" . date('Y_m_d_His') . "_create_" . strtolower(str_plural($this->modelName)) . "_table.php"), $output);
@@ -157,82 +157,37 @@ class GeneratorCommand extends Command
 
     protected function controllerPut()
     {
-        file_put_contents(app_path("/Http/Controllers/{$this->modelName}Controller.php"), $this->replaceNamesAndGet('controllers/ModelController'));
+        $modelRules = '';
 
-        return true;
-    }
-
-    protected function repositoryPut()
-    {
-        if(!file_exists($path = app_path('/Repositories')))
-        mkdir($path, 0777, true);
-
-        file_put_contents($path . '/Repository.php', $this->getStub('repositories/Repository'));
-        file_put_contents($path . '/RepositoryInterface.php', $this->getStub('repositories/RepositoryInterface'));
-
-        return true;
-    }
-
-    protected function requestPut()
-    {
-        if(!file_exists($path = app_path('/Http/Requests')))
-        mkdir($path, 0777, true);
-
-        $ruless = '';
-
-        foreach ($this->inputData as $value) {
-            $ruless .= "\n            '{$value['name']}' => 'required',";
+        foreach ($this->modelFields as $modelField) {
+            $modelRules .= "\n            '{$modelField['name']}' => 'required',";
         }
 
-        $errors = '';
-
-        foreach ($this->inputData as $value) {
-            $errors .= "\n            '{$value['name']}.required' => 'Email is required!',";
-        }
-
-        $fillData = '';
-
-        foreach ($this->inputData as $value) {
-            $fillData .= "\n            '{$value['name']}' => \$this->{$value['name']},";
-        }
-
-        $outputStore = str_replace(
+        $output = str_replace(
             [
-                '{{rules}}',
-                '{{errors}}',
-                '{{fillData}}',
+                '{{modelRules}}',
             ],
             [
-                $ruless,
-                $errors,
-                $fillData,
+                $modelRules,
             ],
-            $this->replaceNamesAndGet('requests/ModelStoreRequest')
+            $this->replaceNouns('controllers/ModelController')
         );
 
-        $outputUpdate = str_replace(
-            [
-                '{{rules}}',
-                '{{errors}}',
-                '{{fillData}}',
-            ],
-            [
-                $ruless,
-                $errors,
-                $fillData,
-            ],
-            $this->replaceNamesAndGet('requests/ModelUpdateRequest')
-        );
-
-        file_put_contents($path . "/{$this->modelName}StoreRequest.php", $outputStore);
-        file_put_contents($path . "/{$this->modelName}UpdateRequest.php", $outputUpdate);
+        file_put_contents(app_path("/Http/Controllers/{$this->modelName}Controller.php"), $output);
 
         return true;
     }
 
     protected function routesPut()
     {
-        File::append(base_path('routes/web.php'), "\n\nRoute::resource('" . str_plural(strtolower($this->modelName)) . "', '{$this->modelName}Controller');");
+        file_put_contents(app_path("Exceptions/Handler.php"), $this->getStub('exceptions/Handler'));
+
+        return true;
+    }
+
+    protected function handlerPut()
+    {
+        File::append(base_path('routes/web.php'), "\n\nRoute::resource('" . str_plural(strtolower($this->modelName)) . "', '{$this->modelName}Controller', ['only' => ['index', 'show', 'store', 'update', 'destroy']]);");
 
         return true;
     }
@@ -242,28 +197,134 @@ class GeneratorCommand extends Command
         if(!file_exists($path = resource_path('/views/' . strtolower($this->modelName))))
         mkdir($path, 0777, true);
 
-        $th = '';
+        $thColumns = '';
 
-        foreach ($this->inputData as $value) {
-            $th .= "\n                <th>" . ucfirst($value['name']) . "</th>";
+        foreach ($this->modelFields as $modelField) {
+            $thColumns .= "\n                <th>" . ucfirst($modelField['name']) . "</th>";
         }
 
-        $td = '';
+        $tdColumns = '';
 
-        foreach ($this->inputData as $value) {
-            $td .= "\n                <td>{{\$" . strtolower($this->modelName) . "->{$value['name']}}}</td>";
+        foreach ($this->modelFields as $modelField) {
+            $tdColumns .= "\n                <td>{{\$" . strtolower($this->modelName) . "->{$modelField['name']}}}</td>";
+        }
+
+        $ajaxFill = '';
+
+        foreach ($this->modelFields as $modelField) {
+            $ajaxFill .= "\n                $(\"#" . strtolower($this->modelName) . "-form input[name$='{$modelField['name']}']\" ).val(data.{$modelField['name']})";
+        }
+
+        $viewDataFill = '';
+
+        foreach ($this->modelFields as $modelField) {
+            $viewDataFill .= "\n                $('.view-{$modelField['name']}')
+                    .html('')
+                    .append(
+                        $('<strong>')
+                            .append('" . ucfirst($modelField['name']) . "'))
+                            .append(
+                                $('<span>')
+                                    .text(' ' + data.{$modelField['name']})
+                    )";
+        }
+
+        $viewDataRows = '';
+
+        foreach ($this->modelFields as $modelField) {
+            $viewDataRows .= "\n            <div class=\"view-{$modelField['name']}\"></div>";
+        }
+
+        $tableRowHtml = "$('<tr>')
+                                        .append(
+                                            $('<th>')
+                                                .attr('scope', 'row')
+                                                .append(response.id)
+                                        )";
+
+        foreach ($this->modelFields as $modelField) {
+            $tableRowHtml .= "\n                                        .append(
+                                            $('<td>')
+                                                .text(response.{$modelField['name']})
+                                        )";
+        }
+
+        $tableRowHtml .= "\n                                        .append(
+                                            $('<td>')
+                                                .append(
+                                                    $('<a>')
+                                                        .attr('href', 'javascript:void(0);')
+                                                        .attr('data-id', response.id)
+                                                        .attr('title', 'view')
+                                                        .addClass('btn btn-outline-secondary btn-sm " . strtolower($this->modelName) . "-view')
+                                                        .append(
+                                                            $('<i>')
+                                                                .addClass('fas fa-eye')
+                                                        )
+                                                )
+                                                .append(' ')
+                                                .append(
+                                                    $('<a>')
+                                                        .attr('href', 'javascript:void(0);')
+                                                        .attr('data-id', response.id)
+                                                        .attr('title', 'edit')
+                                                        .addClass('btn btn-outline-secondary btn-sm " . strtolower($this->modelName) . "-edit')
+                                                        .append(
+                                                            $('<i>')
+                                                                .addClass('fas fa-edit')
+                                                        )
+                                                )
+                                                .append(' ')
+                                                .append(
+                                                    $('<a>')
+                                                        .attr('href', 'javascript:void(0);')
+                                                        .attr('data-id', response.id)
+                                                        .attr('title', 'delete')
+                                                        .addClass('btn btn-outline-secondary btn-sm " . strtolower($this->modelName) . "-delete')
+                                                        .append(
+                                                            $('<i>')
+                                                                .addClass('fas fa-trash')
+                                                        )
+                                                )
+                                        )";
+
+
+        $formElements = '';
+
+        foreach ($this->modelFields as $modelField) {
+            $formElements .= str_replace(
+                [
+                    '{{fieldTitle}}',
+                    '{{fieldName}}',
+                ],
+                [
+                    ucfirst($modelField['name']),
+                    $modelField['name'],
+                ],
+                $this->replaceNouns('shared/' . $modelField['html_type'])
+            );
         }
 
         $output = str_replace(
             [
-                '{{th}}',
-                '{{td}}',
+                '{{thColumns}}',
+                '{{tdColumns}}',
+                '{{formElements}}',
+                '{{ajaxFill}}',
+                '{{tableRowHtml}}',
+                '{{viewDataRows}}',
+                '{{viewDataFill}}',
             ],
             [
-                $th,
-                $td,
+                $thColumns,
+                $tdColumns,
+                $formElements,
+                $ajaxFill,
+                $tableRowHtml,
+                $viewDataRows,
+                $viewDataFill,
             ],
-            $this->replaceNamesAndGet('views/IndexView')
+            $this->replaceNouns('views/IndexView')
         );
 
         file_put_contents($path . '/index.blade.php', $output);
@@ -271,103 +332,25 @@ class GeneratorCommand extends Command
         return true;
     }
 
-    protected function createViewPut()
+    protected function getStub($stub)
     {
-        if(!file_exists($path = resource_path('/views/' . strtolower($this->modelName))))
-        mkdir($path, 0777, true);
-
-        $formInputs = '';
-        $dataContent = '';
-
-        foreach ($this->inputData as $value) {
-            $formInputs .= str_replace(
-                [
-                    '{{fieldTitle}}',
-                    '{{fieldName}}',
-                ],
-                [
-                    ucfirst($value['name']),
-                    $value['name'],
-                ],
-                $this->replaceNamesAndGet('shared/' . $value['input_type'])
-            );
-        }
-
-        foreach ($this->inputData as $value) {
-            $dataContent .= str_replace(
-                [
-                    '{{fieldTitle}}',
-                    '{{fieldName}}',
-                ],
-                [
-                    ucfirst($value['name']),
-                    $value['name'],
-                ],
-                $this->replaceNamesAndGet('shared/show')
-            );
-        }
-
-        $createOutput = str_replace(
-            [
-                '{{formInputs}}',
-            ],
-            [
-                $formInputs,
-            ],
-            $this->replaceNamesAndGet('views/CreateView')
-        );
-
-        $editOutput = str_replace(
-            [
-                '{{formInputs}}',
-            ],
-            [
-                $formInputs,
-            ],
-            $this->replaceNamesAndGet('views/EditView')
-        );
-
-        $showOutput = str_replace(
-            [
-                '{{dataContent}}',
-            ],
-            [
-                $dataContent,
-            ],
-            $this->replaceNamesAndGet('views/ShowView')
-        );
-
-        file_put_contents($path . '/create.blade.php', $createOutput);
-        file_put_contents($path . '/edit.blade.php', $editOutput);
-        file_put_contents($path . '/show.blade.php', $showOutput);
-
-        return true;
+        return file_get_contents(resource_path("LaravelCrudGeneratorStubs/$stub.stub"));
     }
 
-    protected function getStub($type)
-    {
-        return file_get_contents(resource_path("LaravelCrudGeneratorStubs/$type.stub"));
-    }
-
-    protected function getFormField($type)
-    {
-        return "\n" . $this->getStub("shared/$type");
-    }
-
-    protected function replaceNamesAndGet($stub)
+    protected function replaceNouns($stub)
     {
         return str_replace(
             [
-                '{{modelName}}',
-                '{{modelNamePluralLowerCase}}',
-                '{{modelNamePlural}}',
+                '{{modelNameSingular}}',
                 '{{modelNameSingularLowerCase}}',
+                '{{modelNamePlural}}',
+                '{{modelNamePluralLowerCase}}',
             ],
             [
-                $this->modelName,
-                strtolower(str_plural($this->modelName)),
-                str_plural($this->modelName),
-                strtolower($this->modelName),
+                $this->modelName,                           // Test
+                strtolower($this->modelName),               // test
+                str_plural($this->modelName),               // Tests
+                strtolower(str_plural($this->modelName)),   // tests
             ],
             $this->getStub($stub)
         );

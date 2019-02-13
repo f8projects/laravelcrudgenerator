@@ -1,9 +1,181 @@
 @extends('layouts.app')
 
+@push('js')<script>
+        // Load create modal
+        $(document).on('click', '.{{modelNameSingularLowerCase}}-create', function() {
+            $('.{{modelNameSingularLowerCase}}-submit').html("Create")
+            $('.{{modelNameSingularLowerCase}}-submit').val("create")
+            $('.{{modelNameSingularLowerCase}}-submit').prop('disabled', false)
+            $('#{{modelNameSingularLowerCase}}-form').trigger("reset")
+            $('#{{modelNameSingularLowerCase}}-modal .title').html("Create new {{modelNameSingularLowerCase}}");
+            $('#{{modelNameSingularLowerCase}}-modal').modal('show')
+        })
+
+        // Load edit modal
+        $(document).on('click', '.{{modelNameSingularLowerCase}}-edit', function() {
+            var button = $(this)
+            id = button.data('id')
+            tableRow = button.closest('tr')
+
+            $.get('{{ route('tests.index') }}/' + id, function (data) {
+                $('.{{modelNameSingularLowerCase}}-submit').html("Update")
+                $('.{{modelNameSingularLowerCase}}-submit').val("update")
+                $('.{{modelNameSingularLowerCase}}-submit').prop('disabled', false)
+                $('#{{modelNameSingularLowerCase}}-form').trigger("reset")
+                $('#{{modelNameSingularLowerCase}}-modal .title').html("Update {{modelNameSingularLowerCase}}"){{ajaxFill}}
+                $('#{{modelNameSingularLowerCase}}-modal').modal('show')
+            })
+        })
+
+        // Load view modal
+        $(document).on('click', '.{{modelNameSingularLowerCase}}-view', function() {
+            var button = $(this)
+            var id = button.data('id')
+
+            $.get('{{ route('tests.index') }}/' + id, function (data) {{{viewDataFill}}
+                $('#{{modelNameSingularLowerCase}}-view-modal').modal('show')
+            })
+        })
+
+        // Submit data
+        $(document).on('click', '.{{modelNameSingularLowerCase}}-submit', function() {
+            var button = $(this)
+            button.prop('disabled', true)
+
+            var actionType = $('.{{modelNameSingularLowerCase}}-submit').val()
+
+            if (actionType == "update") {
+                type = "PATCH"
+                url = "{{ route('tests.index') }}/" + id
+            } else {
+                type = "POST"
+                url = "{{ route('tests.index') }}"
+            }
+
+            $.ajax({
+                type: type,
+                url: url,
+                data: $('form').serialize(),
+                headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
+                success: function(response) {
+                    if(response.errors){
+                        button.prop('disabled', false)
+
+                        var warningStr = '<ul class="list-unstyled">'
+
+                        $.each( response.errors, function( key, value ) {
+                            warningStr += '<li>' + value + '</li>'
+                        })
+
+                        warningStr += '</ul>'
+
+                        $.toast({
+                           heading: 'Warning!',
+                           icon: 'warning',
+                           text: warningStr,
+                           position: 'bottom-right',
+                        })
+                    } else {
+                        $('#{{modelNameSingularLowerCase}}-modal').modal('hide')
+
+                        var html = {{tableRowHtml}}
+
+                        html.hide()
+
+                        if (actionType == "update") {
+                            $.toast({
+                                heading: 'Success!',
+                                icon: 'info',
+                                text: '{{modelNameSingular}} #' + id + ' updated',
+                                position: 'bottom-right',
+                            })
+                            tableRow.replaceWith(html)
+                        } else {
+                            $.toast({
+                                heading: 'Success!',
+                                icon: 'info',
+                                text: '{{modelNameSingular}} #' + response.id + ' added',
+                                position: 'bottom-right',
+                            })
+
+                            $('#{{modelNameSingularLowerCase}}-table tbody').append(html)
+                        }
+
+                        html.fadeIn(500)
+                    }
+                },
+                error: function() {
+                    button.prop('disabled', false)
+
+                    $.toast({
+                        heading: 'Error!',
+                        icon: 'error',
+                        text: 'System fault',
+                        position: 'bottom-right',
+                    })
+                }
+            })
+        })
+
+        // Delete data
+        $(document).on('click', '.{{modelNameSingularLowerCase}}-delete', function() {
+            var button = $(this)
+            var id = button.data('id')
+            var tableRow = button.closest('tr')
+            button.addClass('disabled')
+
+            $.ajax({
+                type: "DELETE",
+                headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
+                url: "{{ route('tests.index') }}/" + id,
+                success: function(response) {
+                    if(response.errors){
+                        button.removeClass('disabled')
+
+                        var warningStr = '<ul class="list-unstyled">'
+
+                        $.each( response.errors, function( key, value ) {
+                            warningStr += '<li>' + value + '</li>'
+                        })
+
+                        warningStr += '</ul>'
+
+                        $.toast({
+                            heading: 'Warning!',
+                            icon: 'warning',
+                            text: warningStr,
+                            position: 'bottom-right',
+                        })
+                    } else {
+                        tableRow.fadeOut(500)
+
+                        $.toast({
+                            heading: 'Success!',
+                            icon: 'info',
+                            text: '{{modelNameSingular}} #' + id + ' deleted',
+                            position: 'bottom-right',
+                        })
+                    }
+                },
+                error: function() {
+                    button.removeClass('disabled')
+
+                    $.toast({
+                        heading: 'Error!',
+                        icon: 'error',
+                        text: 'System fault',
+                        position: 'bottom-right',
+                    })
+                }
+            })
+        })
+    </script>
+@endpush
+
 @section('content')
 <div class="container">
     <div class="mb-5">
-        <a href="{{route('{{modelNamePluralLowerCase}}.create')}}" class="btn btn-primary" role="button">Create new {{modelNameSingularLowerCase}}</a>
+        <a href="javascript:void(0);" class="btn btn-primary {{modelNameSingularLowerCase}}-create" role="button">Create new {{modelNameSingularLowerCase}}</a>
     </div>
 
     @if ($message = Session::get('success'))
@@ -12,29 +184,55 @@
     </div>
     @endif
 
-    <table class="table">
+    <table class="table" id="{{modelNameSingularLowerCase}}-table">
         <thead>
             <tr>
-                <th scope="col">id</th>{{th}}
+                <th scope="col">id</th>{{thColumns}}
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             @foreach(${{modelNamePluralLowerCase}} as ${{modelNameSingularLowerCase}})
             <tr>
-                <th scope="row">{{${{modelNameSingularLowerCase}}->id}}</th>{{td}}
+                <th scope="row">{{${{modelNameSingularLowerCase}}->id}}</th>{{tdColumns}}
                 <td>
-                    <a href="{{ route('{{modelNamePluralLowerCase}}.show', ${{modelNameSingularLowerCase}}->id)}}" title="view" class="btn btn-outline-secondary btn-sm"><i class="fas fa-eye"></i></a>
-                    <a href="{{ route('{{modelNamePluralLowerCase}}.edit', ${{modelNameSingularLowerCase}}->id)}}" title="edit" class="btn btn-outline-secondary btn-sm"><i class="fas fa-edit"></i></a>
-                    <a href="javascript:void(0);" onclick="$(this).find('form').submit();" title="delete" class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-trash"></i>
-                        {!! Form::open(['method' => 'DELETE','route' => ['{{modelNamePluralLowerCase}}.destroy', ${{modelNameSingularLowerCase}}->id]]) !!}
-                        {!! Form::close() !!}
-                    </a>
+                    <a href="javascript:void(0);" data-id="{{${{modelNameSingularLowerCase}}->id}}" title="view" class="btn btn-outline-secondary btn-sm {{modelNameSingularLowerCase}}-view"><i class="fas fa-eye"></i></a>
+                    <a href="javascript:void(0);" data-id="{{${{modelNameSingularLowerCase}}->id}}" title="edit" class="btn btn-outline-secondary btn-sm {{modelNameSingularLowerCase}}-edit"><i class="fas fa-edit"></i></a>
+                    <a href="javascript:void(0);" data-id="{{${{modelNameSingularLowerCase}}->id}}" title="delete" class="btn btn-outline-secondary btn-sm {{modelNameSingularLowerCase}}-delete"><i class="fas fa-trash"></i></a>
                 </td>
             </tr>
             @endforeach
         </tbody>
     </table>
+</div>
+
+<div class="modal fade" id="{{modelNameSingularLowerCase}}-modal" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h4 class="modal-title title"></h4>
+        </div>
+        <div class="modal-body">
+            <form action="javascript:void(0);" id="{{modelNameSingularLowerCase}}-form">
+{{formElements}}
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-primary {{modelNameSingularLowerCase}}-submit">Save changes</button>
+        </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="{{modelNameSingularLowerCase}}-view-modal" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+        <div class="modal-body">{{viewDataRows}}
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        </div>
+    </div>
+  </div>
 </div>
 @endsection
