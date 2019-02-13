@@ -2,47 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Repositories\Repository;
-use App\Http\Requests\{{modelName}}StoreRequest;
-use App\Http\Requests\{{modelName}}UpdateRequest;
-use App\Models\{{modelName}};
+use Illuminate\Http\Request;
+use App\Models\{{modelNameSingular}};
+use Validator;
 
-class {{modelName}}Controller extends Controller
+class {{modelNameSingular}}Controller extends Controller
 {
-    // space that we can use the repository from
-    protected $model;
-
-    public function __construct({{modelName}} ${{modelNameSingularLowerCase}})
-    {
-        // set the model
-        $this->model = new Repository(${{modelNameSingularLowerCase}});
-    }
-
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        return view('{{modelNameSingularLowerCase}}.index', ['{{modelNamePluralLowerCase}}' => $this->model->all()]);
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        return view('{{modelNameSingularLowerCase}}.create');
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store({{modelName}}StoreRequest $request)
-    {
-        $this->model->create($request->only($this->model->getModel()->fillable));
-
-        return redirect()->route('{{modelNamePluralLowerCase}}.index')
-            ->with('success', '{{modelName}} created successfully');
+        return view('{{modelNameSingularLowerCase}}.index', [
+            '{{modelNamePluralLowerCase}}' => {{modelNameSingular}}::all()
+        ]);
     }
 
     /**
@@ -50,28 +23,51 @@ class {{modelName}}Controller extends Controller
      */
     public function show($id)
     {
-        ${{modelNameSingularLowerCase}} = $this->model->show($id);
-        return view('{{modelNameSingularLowerCase}}.show', compact('{{modelNameSingularLowerCase}}'));
+        ${{modelNameSingularLowerCase}} = {{modelNameSingular}}::findOrFail($id);
+
+        return response()->json(${{modelNameSingularLowerCase}});
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * Store a newly created resource in storage.
      */
-    public function edit($id)
+    public function store(Request $request)
     {
-        ${{modelNameSingularLowerCase}} = $this->model->show($id);
-        return view('{{modelNameSingularLowerCase}}.edit', compact('{{modelNameSingularLowerCase}}'));
+        $rules = array({{modelRules}}
+        );
+
+        $validator = Validator::make($request->all(), $rules);
+
+        if ($validator->fails()) {
+            return response()->json(array(
+                'errors' => $validator->getMessageBag()->toArray(),
+            ));
+        } else {
+            ${{modelNameSingularLowerCase}} = {{modelNameSingular}}::create($request->all());
+            return response()->json(${{modelNameSingularLowerCase}});
+        }
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update({{modelName}}UpdateRequest $request, $id)
+    public function update(Request $request, $id)
     {
-        $this->model->update($request->only($this->model->getModel()->fillable), $id);
+        $rules = array({{modelRules}}
+        );
 
-        return redirect()->route('{{modelNamePluralLowerCase}}.index')
-            ->with('success', '{{modelName}} updated successfully');
+        $validator = Validator::make($request->all(), $rules);
+
+        if ($validator->fails()) {
+            return response()->json(array(
+                'errors' => $validator->getMessageBag()->toArray(),
+            ));
+        } else {
+            ${{modelNameSingularLowerCase}} = {{modelNameSingular}}::findOrFail($id);
+            ${{modelNameSingularLowerCase}}->update($request->all());
+
+            return response()->json(${{modelNameSingularLowerCase}});
+        }
     }
 
     /**
@@ -79,9 +75,9 @@ class {{modelName}}Controller extends Controller
      */
     public function destroy($id)
     {
-        $this->model->delete($id);
+        ${{modelNameSingularLowerCase}} = {{modelNameSingular}}::findOrFail($id);
+        ${{modelNameSingularLowerCase}}->delete();
 
-        return redirect()->route('{{modelNamePluralLowerCase}}.index')
-            ->with('success', '{{modelName}} deleted successfully');
+        return response()->json();
     }
 }
