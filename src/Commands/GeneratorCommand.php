@@ -200,13 +200,13 @@ class GeneratorCommand extends Command
         $thColumns = '';
 
         foreach ($this->modelFields as $modelField) {
-            $thColumns .= "\n                <th>" . ucfirst($modelField['name']) . "</th>";
+            $thColumns .= "\n                    <th>" . ucfirst($modelField['name']) . "</th>";
         }
 
         $tdColumns = '';
 
         foreach ($this->modelFields as $modelField) {
-            $tdColumns .= "\n                <td>{{\$" . strtolower($this->modelName) . "->{$modelField['name']}}}</td>";
+            $tdColumns .= "\n                    <td>{{\$" . strtolower($this->modelName) . "->{$modelField['name']}}}</td>";
         }
 
         $ajaxFill = '';
@@ -232,7 +232,7 @@ class GeneratorCommand extends Command
         $viewDataRows = '';
 
         foreach ($this->modelFields as $modelField) {
-            $viewDataRows .= "\n            <div class=\"view-{$modelField['name']}\"></div>";
+            $viewDataRows .= "\n                    <div class=\"view-{$modelField['name']}\"></div>";
         }
 
         $tableRowHtml = "$('<tr>')
