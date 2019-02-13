@@ -61,13 +61,11 @@
                     if(response.errors){
                         button.prop('disabled', false)
 
-                        var warningStr = '<ul class="list-unstyled">'
+                        var warningStr = ''
 
                         $.each( response.errors, function( key, value ) {
-                            warningStr += '<li>' + value + '</li>'
+                            warningStr += '<div>' + value + '</div>'
                         })
-
-                        warningStr += '</ul>'
 
                         $.toast({
                            heading: 'Warning!',
@@ -132,13 +130,11 @@
                     if(response.errors){
                         button.removeClass('disabled')
 
-                        var warningStr = '<ul class="list-unstyled">'
+                        var warningStr = ''
 
                         $.each( response.errors, function( key, value ) {
-                            warningStr += '<li>' + value + '</li>'
+                            warningStr += '<div>' + value + '</div>'
                         })
-
-                        warningStr += '</ul>'
 
                         $.toast({
                             heading: 'Warning!',
